@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>员工绩效后台 · Neumorphism</title>
+<style>
+/* ============ 风格底座 ============ */
+:root {
+  --bg: #F2E8E0;
+  --ink: #23201D;
+  --ink2: #6E655E;
+  --blue: #2F4BD0;
+  --alert: #E2552D;
+  --raise: -6px -6px 14px #FFFFFF, 6px 6px 14px #D6C8BD;
+  --raise-sm: -4px -4px 10px #FFFFFF, 4px 4px 10px #D6C8BD;
+  --raise-hover: -8px -8px 18px #FFFFFF, 8px 8px 18px #D6C8BD;
+  --sink: inset 4px 4px 10px #D6C8BD, inset -4px -4px 10px #FFFFFF;
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --spring-loose: cubic-bezier(.3, 1.8, .5, 1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "SF Pro Display", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-variant-numeric: tabular-nums;
+  min-height: 100vh;
+}
+.mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+.app { display: flex; min-height: 100vh; }
+
+/* ============ 左侧菜单 ============ */
+.sidebar {
+  width: 216px; flex: none; padding: 34px 22px;
+  display: flex; flex-direction: column; gap: 8px;
+  position: sticky; top: 0; height: 100vh;
+}
+.brand { padding: 6px 8px 26px; }
+.brand h1 { font-size: 20px; letter-spacing: 2px; font-weight: 700; }
+.brand p { font-size: 10px; letter-spacing: 3px; color: var(--ink2); margin-top: 4px; }
+
+.key {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 15px 16px;
+  border: none; border-radius: 16px;
+  background: var(--bg); color: var(--ink);
+  font-weight: 600; font-size: 14px; line-height: 1; font-family: inherit;
+  letter-spacing: 1.5px; cursor: pointer; text-align: left;
+  box-shadow: var(--raise-sm);
+  transition: box-shadow .18s var(--spring), transform .18s var(--spring), color .18s;
+  user-select: none; touch-action: manipulation;
+}
+.key:hover { transform: translateY(-2px); box-shadow: var(--raise-hover); }
+.key:active, .key.on {
+  transform: translateY(2px);
+  box-shadow: var(--sink);
+}
+.key .led {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  background: #CBBDB1;
+  box-shadow: inset 1px 1px 3px #B9A99B;
+  transition: background .25s, box-shadow .25s;
+}
+.key.on .led {
+  background: var(--blue);
+  box-shadow: 0 0 8px rgba(47,75,208,.7), inset 0 0 2px rgba(255,255,255,.5);
+}
+.key .k-num { margin-left: auto; font-size: 11px; color: var(--ink2); letter-spacing: 0; }
+.key.on .k-num { color: var(--blue); }
+
+.side-foot {
+  margin-top: auto; padding: 14px 8px 0;
+  font-size: 10px; color: var(--ink2); letter-spacing: 1px; line-height: 1.8;
+}
+
+/* ============ 主区 ============ */
+main { flex: 1; padding: 34px 40px 60px; display: flex; flex-direction: column; gap: 34px; min-width: 0; }
+
+.panel {
+  border-radius: 24px;
+  box-shadow: var(--raise);
+  padding: 28px 30px 32px;
+}
+.panel > header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; gap: 14px; flex-wrap: wrap;
+}
+.panel h2 { font-size: 16px; letter-spacing: 3px; font-weight: 700; }
+.panel h2::before {
+  content: ""; display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--blue); margin-right: 10px;
+  box-shadow: 0 0 6px rgba(47,75,208,.55); vertical-align: 1px;
+}
+.panel .sub { font-size: 11px; color: var(--ink2); letter-spacing: 1.5px; }
+
+/* ============ 键帽分段控件（本月/全年） ============ */
+.seg {
+  display: flex; gap: 6px; padding: 6px;
+  border-radius: 16px; box-shadow: var(--sink);
+}
+.seg .key {
+  width: auto; padding: 9px 18px; font-size: 12px;
+  box-shadow: none; border-radius: 11px;
+}
+.seg .key:hover { transform: none; box-shadow: var(--raise-sm); }
+.seg .key.on {
+  transform: none;
+  box-shadow: var(--sink);
+  color: var(--blue);
+}
+.seg .key .led { width: 7px; height: 7px; }
+
+/* ============ 机械滚轮计数器 ============ */
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.metric { padding: 22px 22px 20px; border-radius: 20px; box-shadow: var(--raise-sm); }
+.metric .m-label { font-size: 12px; color: var(--ink2); letter-spacing: 2px; }
+.metric .m-row { display: flex; align-items: baseline; gap: 10px; margin: 16px 0 12px; }
+.metric .m-unit { font-size: 15px; color: var(--ink2); font-weight: 600; }
+.metric .m-delta { font-size: 11px; letter-spacing: 1px; }
+.m-delta.up { color: var(--blue); }
+.m-delta.down { color: var(--alert); }
+
+.odo {
+  display: inline-flex; gap: 4px; padding: 8px 9px;
+  border-radius: 12px; box-shadow: var(--sink);
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 26px;                       /* 滚轮字号基准，列高用 em 对齐 */
+}
+.odo .col {
+  width: .62em; height: 1.15em; overflow: hidden; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(214,200,189,.5), transparent 30%, transparent 70%, rgba(214,200,189,.5));
+}
+.odo .strip { display: flex; flex-direction: column; transition-property: transform; transition-timing-function: cubic-bezier(.3, 1.45, .55, 1); }
+.odo .d {
+  height: 1.15em; line-height: 1.15em; text-align: center;
+  font-weight: 700; color: var(--ink);
+}
+.odo .col.lead .d { color: #A8988C; }
+.odo .col.sep { width: .32em; overflow: visible; }
+.odo .col.sep .d { color: var(--ink2); }
+
+/* ============ 目标设定：旋钮 + 柱状图 ============ */
+.target-wrap { display: flex; gap: 44px; align-items: center; flex-wrap: wrap; }
+
+.knob-zone { display: flex; flex-direction: column; align-items: center; gap: 14px; flex: none; }
+.knob-box { position: relative; width: 190px; height: 190px; }
+/* 刻度环 */
+.knob-ticks {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-conic-gradient(
+    from -135deg,
+    var(--ink2) 0deg .8deg, transparent .8deg 13.5deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 67%, #000 71%, transparent 72%);
+          mask: radial-gradient(circle, transparent 66%, #000 67%, #000 71%, transparent 72%);
+  opacity: .45;
+}
+/* 蓝色量程弧 */
+@property --arc { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.knob-arc {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from -135deg, var(--blue) var(--arc, 162deg), transparent 0deg);
+  -webkit-mask: radial-gradient(circle, transparent 64%, #000 65%, #000 73%, transparent 74%);
+          mask: radial-gradient(circle, transparent 64%, #000 65%, #000 73%, transparent 74%);
+  transition: --arc .15s;
+}
+/* 旋钮本体 */
+.knob {
+  position: absolute; inset: 24px; border-radius: 50%; border: none;
+  background: linear-gradient(145deg, #F7EEE7, #EADDD2);
+  box-shadow: var(--raise), inset 0 0 0 1px rgba(255,255,255,.4);
+  cursor: grab; touch-action: none; user-select: none;
+  transition: transform .18s var(--spring);
+}
+.knob:active { cursor: grabbing; }
+.knob .knob-face {
+  position: absolute; inset: 0; border-radius: 50%;
+  transition: transform .15s var(--spring);
+}
+.knob .pointer-dot {
+  position: absolute; left: 50%; top: 9%;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--blue); transform: translateX(-50%);
+  box-shadow: 0 0 8px rgba(47,75,208,.7), inset 0 0 2px #fff;
+}
+.knob-val {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-size: 30px; font-weight: 800; pointer-events: none;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.knob-val small { font-size: 13px; color: var(--ink2); font-weight: 600; }
+.knob-hint { font-size: 11px; color: var(--ink2); letter-spacing: 2px; }
+
+/* 柱状图（div 实现） */
+.chart-zone { flex: 1; min-width: 300px; }
+.chart {
+  position: relative; height: 210px;
+  display: flex; align-items: flex-end; gap: 2.2%;
+  padding: 0 4px;
+}
+.chart .bar {
+  flex: 1; border-radius: 7px 7px 3px 3px;
+  background: #C9BBAE;
+  box-shadow: inset -2px -2px 5px rgba(255,255,255,.35);
+  transition: background-color .5s, box-shadow .5s, height .5s var(--spring);
+  position: relative;
+}
+.chart .bar.hit {
+  background: var(--blue);
+  box-shadow: 0 0 14px rgba(47,75,208,.35), inset -2px -2px 5px rgba(255,255,255,.25);
+}
+.chart .bar::after {
+  content: attr(data-v); position: absolute; left: 50%; top: -20px;
+  transform: translateX(-50%);
+  font-size: 9.5px; color: var(--ink2);
+  font-family: "SF Mono", Menlo, monospace;
+}
+.target-line {
+  position: absolute; left: -6px; right: -6px; height: 0;
+  border-top: 2px dashed var(--alert);
+  transition: bottom .3s var(--spring);
+  pointer-events: none;
+}
+.target-line .tl-tag {
+  position: absolute; left: -4px; top: -19px;
+  font-size: 10px; color: var(--alert); letter-spacing: 1px;
+  font-family: "SF Mono", Menlo, monospace; white-space: nowrap;
+}
+.chart-x { display: flex; gap: 2.2%; padding: 10px 4px 0; }
+.chart-x span { flex: 1; text-align: center; font-size: 9.5px; color: var(--ink2); }
+
+/* ============ 功能模块：开关 ============ */
+.modules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.module { padding: 20px 20px 22px; border-radius: 20px; box-shadow: var(--raise-sm); }
+.module .m-head { display: flex; align-items: center; justify-content: space-between; }
+.module h3 { font-size: 14px; letter-spacing: 1.5px; }
+.module .m-desc { font-size: 11px; color: var(--ink2); margin: 8px 0 16px; letter-spacing: .5px; }
+
+.sw {
+  position: relative; width: 58px; height: 32px; flex: none;
+  border: none; border-radius: 16px; background: var(--bg);
+  box-shadow: var(--sink); cursor: pointer; touch-action: manipulation;
+}
+.sw .thumb {
+  position: absolute; left: 4px; top: 4px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(145deg, #F8F0E9, #E8DCD0);
+  box-shadow: -2px -2px 6px #FFFFFF, 2px 2px 6px #D6C8BD;
+  transition: transform .18s var(--spring), background .3s;
+}
+.sw .sw-led {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #CBBDB1; transition: background .3s, box-shadow .3s;
+}
+.sw.on .thumb { transform: translateX(26px); }
+.sw.on .sw-led { background: var(--blue); box-shadow: 0 0 7px rgba(47,75,208,.75); }
+
+.mini-chart {
+  display: flex; align-items: flex-end; gap: 7%;
+  height: 76px; padding: 0 2px;
+  filter: grayscale(1); opacity: .38;
+  transition: filter .5s, opacity .5s;
+}
+.module.on .mini-chart { filter: grayscale(0); opacity: 1; }
+.mini-chart i {
+  flex: 1; border-radius: 4px 4px 2px 2px; display: block;
+}
+.module .m-foot { display: flex; justify-content: space-between; margin-top: 14px; font-size: 10.5px; color: var(--ink2); letter-spacing: 1px; }
+.module .m-foot b { color: var(--ink); font-family: "SF Mono", Menlo, monospace; }
+
+/* ============ 员工绩效：卡片堆叠抽拉 ============ */
+.deck-zone { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
+.deck-info { flex: 1; min-width: 240px; }
+.deck-info .big { font-size: 34px; font-weight: 800; letter-spacing: 1px; margin: 8px 0 14px; font-family: "SF Mono", Menlo, monospace; }
+.deck-info .big em { font-style: normal; color: var(--blue); }
+.deck-info p { font-size: 12.5px; color: var(--ink2); line-height: 2; letter-spacing: .5px; }
+.deck-hint {
+  margin-top: 20px; padding: 12px 18px; border-radius: 14px;
+  box-shadow: var(--sink); font-size: 12.5px; letter-spacing: 1px;
+  color: var(--ink2); transition: color .2s;
+}
+.deck-hint.hot { color: var(--blue); font-weight: 700; }
+
+.deck {
+  position: relative; width: 330px; height: 300px; flex: none;
+  user-select: none; touch-action: none;
+}
+.pcard {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 240px; border-radius: 22px;
+  background: var(--bg);
+  box-shadow: var(--raise);
+  padding: 22px 24px;
+  will-change: transform;
+}
+.pcard.dragging { box-shadow: var(--raise-hover); }
+.pcard.returning { transition: transform .22s var(--spring); }
+.pcard .pc-head { display: flex; align-items: center; gap: 14px; }
+.pcard .avatar {
+  width: 48px; height: 48px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 17px; color: #fff;
+  box-shadow: var(--raise-sm);
+}
+.pcard .pc-name { font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+.pcard .pc-role { font-size: 11px; color: var(--ink2); margin-top: 3px; letter-spacing: 1px; }
+.pcard .pc-score {
+  margin-left: auto; text-align: right;
+  font-family: "SF Mono", Menlo, monospace;
+}
+.pcard .pc-score b { font-size: 26px; }
+.pcard .pc-score span { display: block; font-size: 9.5px; color: var(--ink2); letter-spacing: 1px; }
+.pcard .pc-rows { margin-top: 18px; display: flex; flex-direction: column; gap: 11px; }
+.pcard .pr { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--ink2); }
+.pcard .pr .bar-track { flex: 1; height: 8px; border-radius: 4px; box-shadow: var(--sink); overflow: hidden; }
+.pcard .pr .bar-fill { height: 100%; border-radius: 4px; }
+.pcard .pr b { width: 34px; text-align: right; color: var(--ink); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+.pcard .grab-line {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  width: 44px; height: 4px; border-radius: 2px;
+  background: #CBBDB1;
+}
+.pcard-top { cursor: grab; }
+.pcard-top:active { cursor: grabbing; }
+
+/* 展开详情 */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(35,32,29,.28);
+  display: grid; place-items: center;
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.overlay.show { opacity: 1; pointer-events: auto; }
+.overlay .detail {
+  width: min(520px, 92vw); border-radius: 26px;
+  background: var(--bg); box-shadow: var(--raise);
+  padding: 30px 32px 28px;
+  transform: scale(.92) translateY(24px);
+  transition: transform .28s var(--spring-loose);
+}
+.overlay.show .detail { transform: none; }
+.detail .d-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.detail .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.detail .d-cell { padding: 14px 16px; border-radius: 14px; box-shadow: var(--sink); }
+.detail .d-cell span { font-size: 10.5px; color: var(--ink2); letter-spacing: 1.5px; }
+.detail .d-cell b { display: block; margin-top: 6px; font-size: 19px; font-family: "SF Mono", Menlo, monospace; }
+.detail .d-cell b.blue { color: var(--blue); }
+.detail .d-cell b.orange { color: var(--alert); }
+.detail .d-note { margin: 18px 0 20px; font-size: 12.5px; line-height: 2; color: var(--ink2); }
+.detail .d-close {
+  width: 100%; padding: 14px; border: none; border-radius: 16px;
+  background: var(--bg); color: var(--blue); font-weight: 700; font-size: 13px; line-height: 1;
+  font-family: inherit; letter-spacing: 3px; cursor: pointer;
+  box-shadow: var(--raise-sm);
+  transition: box-shadow .18s var(--spring), transform .18s var(--spring);
+}
+.detail .d-close:active { transform: translateY(2px); box-shadow: var(--sink); }
+
+/* ============ 响应式：<900px 菜单折到顶部 ============ */
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+  .sidebar {
+    width: 100%; height: auto; position: static;
+    flex-direction: row; align-items: center;
+    padding: 14px 16px; gap: 8px; overflow-x: auto;
+  }
+  .brand { padding: 0 10px 0 0; flex: none; }
+  .brand h1 { font-size: 15px; }
+  .brand p { display: none; }
+  .key { width: auto; white-space: nowrap; padding: 12px 14px; font-size: 12.5px; }
+  .key .k-num { display: none; }
+  .side-foot { display: none; }
+  main { padding: 20px 16px 48px; }
+  .metrics, .modules { grid-template-columns: 1fr; }
+  .deck { margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 左侧菜单（交互01：实体按键） ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>绩效中枢</h1>
+      <p>PEOPLE · OPS</p>
+    </div>
+    <nav id="nav" style="display:contents">
+      <button class="key on" data-sec="sec-overview"><i class="led"></i>数据概览<span class="k-num">01</span></button>
+      <button class="key" data-sec="sec-target"><i class="led"></i>目标设定<span class="k-num">02</span></button>
+      <button class="key" data-sec="sec-modules"><i class="led"></i>功能模块<span class="k-num">03</span></button>
+      <button class="key" data-sec="sec-cards"><i class="led"></i>员工绩效<span class="k-num">04</span></button>
+    </nav>
+    <div class="side-foot">NEUMORPHIC ADMIN<br>离线演示 · v1.0</div>
+  </aside>
+
+  <main>
+    <!-- ===== 数据概览（交互04：机械数字） ===== -->
+    <section class="panel" id="sec-overview">
+      <header>
+        <h2>数据概览</h2>
+        <div class="seg" id="periodSeg">
+          <button class="key on" data-period="month"><i class="led"></i>本月</button>
+          <button class="key" data-period="year"><i class="led"></i>全年</button>
+        </div>
+      </header>
+      <div class="metrics">
+        <div class="metric">
+          <div class="m-label">人均产值</div>
+          <div class="m-row">
+            <span class="m-unit">¥</span>
+            <div class="odo" data-metric="output"></div>
+          </div>
+          <div class="m-delta up" data-delta="output">▲ 较上月 +8.2%</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">目标达成率</div>
+          <div class="m-row">
+            <div class="odo" data-metric="rate"></div>
+            <span class="m-unit">%</span>
+          </div>
+          <div class="m-delta up" data-delta="rate">▲ 较上月 +3.1pt</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">培训人次</div>
+          <div class="m-row">
+            <div class="odo" data-metric="train"></div>
+            <span class="m-unit">人次</span>
+          </div>
+          <div class="m-delta down" data-delta="train">▼ 较上月 −2</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 目标设定（交互02：旋钮） ===== -->
+    <section class="panel" id="sec-target">
+      <header>
+        <h2>目标设定</h2>
+        <span class="sub">拖动旋钮设定季度达成目标 · 每 5% 一档</span>
+      </header>
+      <div class="target-wrap">
+        <div class="knob-zone">
+          <div class="knob-box">
+            <div class="knob-ticks"></div>
+            <div class="knob-arc" id="knobArc"></div>
+            <button class="knob" id="knob" aria-label="目标值旋钮">
+              <i class="knob-face" id="knobFace"><i class="pointer-dot"></i></i>
+              <span class="knob-val"><span id="knobVal">60</span><small>%</small></span>
+            </button>
+          </div>
+          <div class="knob-hint">季度达成目标 · 0–100%</div>
+        </div>
+        <div class="chart-zone">
+          <div class="chart" id="chart">
+            <div class="target-line" id="targetLine"><span class="tl-tag" id="tlTag">目标 60%</span></div>
+          </div>
+          <div class="chart-x" id="chartX"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 功能模块（交互03：开关通电） ===== -->
+    <section class="panel" id="sec-modules">
+      <header>
+        <h2>功能模块</h2>
+        <span class="sub">拨动开关启用模块 · 图表通电点亮</span>
+      </header>
+      <div class="modules" id="modules"></div>
+    </section>
+
+    <!-- ===== 员工绩效（交互05：卡片抽拉） ===== -->
+    <section class="panel" id="sec-cards">
+      <header>
+        <h2>员工绩效 · TOP 3</h2>
+        <span class="sub">向下拖拽顶部卡片抽出查看详情</span>
+      </header>
+      <div class="deck-zone">
+        <div class="deck-info">
+          <div class="sub">本季度明星员工</div>
+          <div class="big"><em>3</em> 人上榜</div>
+          <p>卡片按绩效分堆叠。按住最上方卡片向下拖拽即可抽出——拖动距离不足会自动弹回，拖过阈值松手展开完整档案。</p>
+          <div class="deck-hint" id="deckHint">按住顶部卡片向下拖</div>
+        </div>
+        <div class="deck" id="deck"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 卡片详情浮层 -->
+<div class="overlay" id="overlay">
+  <div class="detail" id="detail"></div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ============================================================
+   交互 01 · 菜单键帽：当前项保持按下 + 指示灯
+   ============================================================ */
+const navKeys = $$("#nav .key");
+navKeys.forEach(k => {
+  k.addEventListener("click", () => {
+    navKeys.forEach(x => x.classList.remove("on"));
+    k.classList.add("on");
+    document.getElementById(k.dataset.sec).scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+// 滚动时同步当前项
+const secIds = ["sec-overview", "sec-target", "sec-modules", "sec-cards"];
+const io = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (!e.isIntersecting) return;
+    navKeys.forEach(k => k.classList.toggle("on", k.dataset.sec === e.target.id));
+  });
+}, { rootMargin: "-35% 0px -55% 0px" });
+secIds.forEach(id => io.observe(document.getElementById(id)));
+
+/* ============================================================
+   交互 04 · 机械滚轮计数器
+   每位独立滚动，低位（个位）过渡更快
+   ============================================================ */
+const ODO_DIGITS = 6;                        // 6 位机械轮，高位补零
+const METRIC_FMT = {                          // 每指标的位数分组（千分位逗号）
+  output: [3, 3],   // 000,000
+  rate:   [3],      // 076 → 显示 % 单位
+  train:  [4],      // 0128
+};
+const METRIC_DATA = {
+  month: { output: 12480,  rate: 76, train: 128,
+           deltas: ["▲ 较上月 +8.2%", "▲ 较上月 +3.1pt", "▼ 较上月 −2"] },
+  year:  { output: 146320, rate: 83, train: 1240,
+           deltas: ["▲ 较去年 +11.6%", "▲ 较去年 +5.4pt", "▲ 较去年 +37"] },
+};
+
+// 生成每个指标的内凹滚轮窗口
+$$(".odo").forEach(odo => {
+  const metric = odo.dataset.metric;
+  const groups = METRIC_FMT[metric];
+  const total = groups.reduce((a, b) => a + b, 0);
+  let html = "";
+  let pos = total;                      // 从高位到低位排
+  groups.forEach((g, gi) => {
+    for (let i = 0; i < g; i++) {
+      pos--;
+      html += `<div class="col" data-pos="${pos}"><div class="strip">` +
+              "0123456789".split("").map(d => `<div class="d">${d}</div>`).join("") +
+              `</div></div>`;
+    }
+    if (gi < groups.length - 1) {
+      html += `<div class="col sep"><div class="d">,</div></div>`;
+    }
+  });
+  odo.innerHTML = html;
+  // 每一位不同过渡时长：低位（pos 小）更快
+  odo.querySelectorAll(".strip").forEach(strip => {
+    const pos = +strip.parentElement.dataset.pos;
+    strip.style.transitionDuration = (260 + pos * 140) + "ms";
+  });
+});
+
+function setOdo(metric, value) {
+  const odo = document.querySelector(`.odo[data-metric="${metric}"]`);
+  const groups = METRIC_FMT[metric];
+  const total = groups.reduce((a, b) => a + b, 0);
+  const digits = String(Math.max(0, Math.round(value))).padStart(total, "0").slice(-total).split("");
+  // pos = total-1 是个位（最右），pos 越小越低位的说法反过来：data-pos 存的是"从右数第几位"
+  odo.querySelectorAll(".col:not(.sep)").forEach(col => {
+    const pos = +col.dataset.pos;                 // 0=个位
+    const d = +digits[total - 1 - pos];
+    const strip = col.querySelector(".strip");
+    strip.style.transform = `translateY(${-d * 1.15}em)`;
+    // 前导零位标暗
+    const isLead = digits.slice(0, total - pos).every(x => x === "0") && d === 0;
+    col.classList.toggle("lead", isLead);
+  });
+}
+
+function refreshMetrics(period) {
+  const d = METRIC_DATA[period];
+  setOdo("output", d.output);
+  setOdo("rate", d.rate);
+  setOdo("train", d.train);
+  ["output", "rate", "train"].forEach((m, i) => {
+    const el = document.querySelector(`[data-delta="${m}"]`);
+    el.textContent = d.deltas[i];
+    el.className = "m-delta " + (d.deltas[i].startsWith("▲") ? "up" : "down");
+  });
+}
+
+// 本月 / 全年 键帽切换
+$$("#periodSeg .key").forEach(k => {
+  k.addEventListener("click", () => {
+    if (k.classList.contains("on")) return;
+    $$("#periodSeg .key").forEach(x => x.classList.remove("on"));
+    k.classList.add("on");
+    refreshMetrics(k.dataset.period);
+  });
+});
+refreshMetrics("month");
+// 首次进入时让数字从零滚起来（演示效果）
+setTimeout(() => refreshMetrics("month"), 60);
+
+/* ============================================================
+   交互 02 · 旋钮调值：拖动旋转、5% 吸附、蓝色量程弧、联动图表
+   ============================================================ */
+const KNOB_MIN = 0, KNOB_MAX = 100, KNOB_STEP = 5;
+const ANG_MIN = -135, ANG_MAX = 135;          // 旋钮角度范围（0° 朝上）
+let targetVal = 60;
+
+const knob = $("#knob"), knobVal = $("#knobVal"),
+      knobArc = $("#knobArc"), chart = $("#chart"),
+      targetLine = $("#targetLine"), tlTag = $("#tlTag");
+
+// 柱状图数据（写死）：12 个月达成率
+const BARS = [42, 55, 61, 58, 70, 66, 75, 82, 78, 88, 91, 85];
+const MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+BARS.forEach((v, i) => {
+  const b = document.createElement("div");
+  b.className = "bar";
+  b.style.height = v + "%";
+  b.dataset.v = v;
+  chart.appendChild(b);
+  const x = document.createElement("span");
+  x.textContent = MONTHS[i];
+  $("#chartX").appendChild(x);
+});
+const barEls = $$("#chart .bar");
+
+function applyTarget(v) {
+  targetVal = v;
+  const ang = ANG_MIN + (v / KNOB_MAX) * (ANG_MAX - ANG_MIN);
+  $("#knobFace").style.transform = `rotate(${ang}deg)`;
+  knobVal.textContent = v;
+  knobArc.style.setProperty("--arc", (v / KNOB_MAX * 270) + "deg");
+  targetLine.style.bottom = v + "%";
+  tlTag.textContent = `目标 ${v}%`;
+  barEls.forEach((b, i) => b.classList.toggle("hit", BARS[i] >= v));
+}
+
+// 旋钮拖拽（Pointer Events）
+let knobDragging = false;
+function angleFromEvent(e) {
+  const r = knob.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  // atan2 让正上方为 0°，顺时针为正
+  return Math.atan2(e.clientX - cx, -(e.clientY - cy)) * 180 / Math.PI;
+}
+knob.addEventListener("pointerdown", e => {
+  knobDragging = true;
+  knob.setPointerCapture(e.pointerId);
+  moveKnob(e);
+});
+knob.addEventListener("pointermove", e => knobDragging && moveKnob(e));
+["pointerup", "pointercancel"].forEach(ev =>
+  knob.addEventListener(ev, () => knobDragging = false));
+
+function moveKnob(e) {
+  let a = angleFromEvent(e);
+  // 底部死区（±135°~±180°）直接夹到最近端即可
+  a = Math.max(ANG_MIN, Math.min(ANG_MAX, a));
+  let v = (a - ANG_MIN) / (ANG_MAX - ANG_MIN) * KNOB_MAX;
+  v = Math.round(v / KNOB_STEP) * KNOB_STEP;      // 每 5% 吸附
+  v = Math.max(KNOB_MIN, Math.min(KNOB_MAX, v));
+  if (v !== targetVal) applyTarget(v);
+}
+applyTarget(60);
+
+/* ============================================================
+   交互 03 · 模块开关：滑块吸附回弹、指示灯、灰度→彩色
+   ============================================================ */
+const MODULES = [
+  { name: "考勤统计", desc: "出勤率、迟到分布与加班时长汇总",
+    color: "#2F4BD0", bars: [42, 66, 55, 80, 62, 90, 74, 68], stat: "出勤率 96.4%" },
+  { name: "薪酬核算", desc: "绩效系数联动薪资、奖金自动核算",
+    color: "#7A4BC0", bars: [58, 44, 72, 50, 86, 64, 78, 92], stat: "核算准确率 99.2%" },
+  { name: "培训成长", desc: "课程完成度、技能矩阵与晋升通道",
+    color: "#E2552D", bars: [30, 52, 46, 70, 58, 84, 66, 88], stat: "人均学时 14.5h" },
+];
+const modBox = $("#modules");
+MODULES.forEach((m, i) => {
+  const el = document.createElement("div");
+  el.className = "module";
+  el.innerHTML = `
+    <div class="m-head">
+      <h3>${m.name}</h3>
+      <button class="sw" aria-label="${m.name}开关"><i class="thumb"></i><i class="sw-led"></i></button>
+    </div>
+    <div class="m-desc">${m.desc}</div>
+    <div class="mini-chart">${m.bars.map(h =>
+      `<i style="height:${h}%;background:${m.color}"></i>`).join("")}</div>
+    <div class="m-foot"><span>本月统计</span><b>${m.stat}</b></div>`;
+  modBox.appendChild(el);
+  const sw = el.querySelector(".sw");
+  sw.addEventListener("click", () => {
+    sw.classList.toggle("on");
+    el.classList.toggle("on", sw.classList.contains("on"));
+  });
+});
+// 默认开启前两个模块
+$$(".module .sw").forEach((sw, i) => { if (i < 2) sw.click(); });
+
+/* ============================================================
+   交互 05 · 卡片抽拉：拖拽抽出、后方卡片弹簧下沉、阈值展开
+   ============================================================ */
+const EMPLOYEES = [
+  { name: "张明", role: "前端工程师 · 研发一部", score: 92, color: "#2F4BD0",
+    rows: [["OKR 完成率", .94], ["代码评审通过", .88], ["协作评分", .90]],
+    detail: { okr: "94%", review: "A+", collab: "9.0", rank: "TOP 1",
+              note: "本季度主导绩效后台前端重构，交付提前 5 天，评审一次通过。建议纳入核心技术梯队培养。" } },
+  { name: "李婷", role: "产品经理 · 平台组", score: 88, color: "#7A4BC0",
+    rows: [["OKR 完成率", .86], ["需求按期交付", .91], ["协作评分", .87]],
+    detail: { okr: "86%", review: "A", collab: "8.7", rank: "TOP 2",
+              note: "绩效模块需求拆解清晰、排期准确，跨部门沟通表现突出。下季度可尝试独立带产品线。" } },
+  { name: "王浩", role: "数据分析师 · 商业智能部", score: 84, color: "#E2552D",
+    rows: [["OKR 完成率", .82], ["报表准确率", .96], ["协作评分", .78]],
+    detail: { okr: "82%", review: "A−", collab: "7.8", rank: "TOP 3",
+              note: "搭建了全员绩效数据看板，报表准确率全组最高。协作主动性有提升空间。" } },
+];
+
+const deck = $("#deck"), deckHint = $("#deckHint"),
+      overlay = $("#overlay"), detail = $("#detail");
+const DRAG_THRESHOLD = 110;                    // 抽出阈值 px
+const pcards = [];
+
+EMPLOYEES.forEach((emp, i) => {
+  const c = document.createElement("div");
+  c.className = "pcard";
+  c.innerHTML = `
+    <div class="pc-head">
+      <div class="avatar" style="background:${emp.color}">${emp.name[0]}</div>
+      <div><div class="pc-name">${emp.name}</div><div class="pc-role">${emp.role}</div></div>
+      <div class="pc-score"><b style="color:${emp.color}">${emp.score}</b><span>绩效分</span></div>
+    </div>
+    <div class="pc-rows">${emp.rows.map(([t, v]) => `
+      <div class="pr"><span>${t}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${v*100}%;background:${emp.color}"></div></div>
+        <b>${Math.round(v*100)}%</b>
+      </div>`).join("")}
+    </div>
+    <div class="grab-line"></div>`;
+  deck.appendChild(c);
+  pcards.push({ el: c, index: i, y: 0, v: 0, target: 0 });
+});
+
+// 初始堆叠：后面的卡片依次下沉、缩小
+function layoutDeck() {
+  pcards.forEach((p, i) => {
+    p.el.style.zIndex = 10 - i;
+    if (i === 0) p.el.classList.add("pcard-top");
+    else p.el.classList.remove("pcard-top");
+  });
+}
+layoutDeck();
+
+// 弹簧积分循环：后方卡片带"重量"依次下沉并回弹
+const SPRING_K = 170, SPRING_D = 16;
+let springRunning = false;
+let lastT = 0;
+function springLoop(t) {
+  if (!springRunning) return;
+  const dt = Math.min((t - lastT) / 1000, .033);
+  lastT = t;
+  let settled = true;
+  pcards.forEach(p => {
+    if (p.index === 0) return;                // 顶层卡由拖拽/回弹过渡直接控制
+    const acc = (p.target - p.y) * SPRING_K - p.v * SPRING_D;
+    p.v += acc * dt;
+    p.y += p.v * dt;
+    if (Math.abs(p.v) > .5 || Math.abs(p.target - p.y) > .5) settled = false;
+    const i = p.index;
+    const sink = Math.max(p.y, 0);            // 只下沉不抬升
+    p.el.style.transform =
+      `translateY(${i * 14 + sink}px) scale(${1 - i * .045 - sink * .0006})`;
+  });
+  if (settled) { springRunning = false; pcards.forEach(p => { p.y = p.target; p.v = 0; }); return; }
+  requestAnimationFrame(springLoop);
+}
+function kickSprings() {
+  if (!springRunning) { springRunning = true; lastT = performance.now(); requestAnimationFrame(springLoop); }
+}
+
+// 初始布局（无拖拽时的静止形变）
+pcards.forEach((p, i) => {
+  p.el.style.transform = `translateY(${i * 14}px) scale(${1 - i * .045})`;
+});
+
+// 拖拽逻辑（Pointer Events）
+const dragState = { active: false, startY: 0, dy: 0, id: null };
+const topCard = () => pcards[0];
+
+deck.addEventListener("pointerdown", e => {
+  const top = topCard();
+  if (!top || !top.el.contains(e.target)) return;
+  dragState.active = true;
+  dragState.startY = e.clientY;
+  dragState.dy = 0;
+  dragState.id = e.pointerId;
+  deck.setPointerCapture(e.pointerId);
+  top.el.classList.remove("returning");
+  top.el.classList.add("dragging");
+  deckHint.textContent = "拖动中 · 松手归位";
+  e.preventDefault();
+});
+
+deck.addEventListener("pointermove", e => {
+  if (!dragState.active || e.pointerId !== dragState.id) return;
+  const top = topCard();
+  dragState.dy = Math.max(-30, e.clientY - dragState.startY);   // 上拖少量跟随
+  const dy = dragState.dy;
+  const p = Math.max(0, dy / DRAG_THRESHOLD);                   // 抽出进度
+  top.el.style.transform = `translateY(${dy}px) rotate(${dy * .02}deg)`;
+  // 后方卡片目标：按重量依次下沉（重的下沉少、滞后感由弹簧自然产生）
+  pcards.forEach((c, i) => {
+    if (i === 0) return;
+    c.target = Math.min(p, 1.3) * (26 - i * 9);   // 近处沉得多
+  });
+  kickSprings();
+  // 实时提示
+  const over = dy > DRAG_THRESHOLD;
+  deckHint.textContent = over ? "已超阈值 · 松手拉出查看详情" : "拖动中 · 松手归位";
+  deckHint.classList.toggle("hot", over);
+});
+
+function endDrag() {
+  if (!dragState.active) return;
+  dragState.active = false;
+  const top = topCard();
+  const dy = dragState.dy;
+  top.el.classList.remove("dragging");
+  if (dy > DRAG_THRESHOLD) {
+    // 超过阈值：展开详情
+    top.el.classList.add("returning");
+    top.el.style.transform = "translateY(0) rotate(0deg)";
+    pcards.forEach(c => c.target = 0);
+    kickSprings();
+    openDetail(EMPLOYEES[top.index]);
+    deckHint.textContent = "按住顶部卡片向下拖";
+    deckHint.classList.remove("hot");
+  } else {
+    // 归位：卡片弹回，后方卡片弹簧回弹复位
+    top.el.classList.add("returning");
+    top.el.style.transform = "translateY(0) rotate(0deg)";
+    pcards.forEach(c => c.target = 0);
+    kickSprings();
+    deckHint.textContent = "按住顶部卡片向下拖";
+    deckHint.classList.remove("hot");
+  }
+}
+deck.addEventListener("pointerup", endDrag);
+deck.addEventListener("pointercancel", endDrag);
+
+// 展开详情浮层
+function openDetail(emp) {
+  detail.innerHTML = `
+    <div class="d-head">
+      <div class="avatar" style="background:${emp.color};width:54px;height:54px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px;box-shadow:var(--raise-sm)">${emp.name[0]}</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:1px">${emp.name}
+          <span style="font-size:11px;color:${emp.color};margin-left:8px">${emp.detail.rank}</span></div>
+        <div style="font-size:11.5px;color:var(--ink2);margin-top:4px;letter-spacing:1px">${emp.role}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;font-family:'SF Mono',Menlo,monospace">
+        <b style="font-size:30px;color:${emp.color}">${emp.score}</b>
+        <div style="font-size:10px;color:var(--ink2);letter-spacing:1px">绩效分</div>
+      </div>
+    </div>
+    <div class="d-grid">
+      <div class="d-cell"><span>OKR 完成率</span><b class="blue">${emp.detail.okr}</b></div>
+      <div class="d-cell"><span>评审等级</span><b>${emp.detail.review}</b></div>
+      <div class="d-cell"><span>协作评分</span><b>${emp.detail.collab}</b></div>
+      <div class="d-cell"><span>考勤异常</span><b class="orange">0 次</b></div>
+    </div>
+    <div class="d-note">主管评语：${emp.detail.note}</div>
+    <button class="d-close" id="dClose">收 起 卡 片</button>`;
+  overlay.classList.add("show");
+  $("#dClose").addEventListener("click", closeDetail);
+}
+function closeDetail() { overlay.classList.remove("show"); }
+overlay.addEventListener("pointerdown", e => {
+  if (e.target === overlay) closeDetail();
+});
+</script>
+</body>
+</html>
