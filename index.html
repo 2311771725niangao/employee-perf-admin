@@ -395,7 +395,12 @@ main { flex: 1; padding: 34px 40px 60px; display: flex; flex-direction: column; 
       <button class="key" data-sec="sec-modules"><i class="led"></i>功能模块<span class="k-num">03</span></button>
       <button class="key" data-sec="sec-cards"><i class="led"></i>员工绩效<span class="k-num">04</span></button>
     </nav>
-    <div class="side-foot">NEUMORPHIC ADMIN<br>离线演示 · v1.0</div>
+    <div class="side-foot">
+      <button class="key on" id="sndBtn" style="width:auto;padding:10px 14px;font-size:11.5px">
+        <i class="led"></i>音效<span class="k-num" style="display:none"></span>
+      </button>
+      <div style="margin-top:10px">NEUMORPHIC ADMIN<br>离线演示 · v1.0</div>
+    </div>
   </aside>
 
   <main>
@@ -502,11 +507,111 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
 /* ============================================================
+   音效引擎 · Web Audio 程序化合成（无音频文件，离线可用）
+   ============================================================ */
+const Sfx = (() => {
+  let ac = null, master = null, enabled = true;
+
+  function ensure() {
+    if (!enabled) return null;
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = .22;
+      master.connect(ac.destination);
+    }
+    if (ac.state === "suspended") ac.resume();
+    return ac;
+  }
+  // 基础：单振荡器短音（频率可扫、指数衰减）
+  function blip({ f0 = 800, f1 = f0, dur = .04, type = "square", vol = .5, when = 0 }) {
+    const ctx = ensure(); if (!ctx) return;
+    const t = ctx.currentTime + when;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + dur + .02);
+  }
+  // 基础：滤波噪声（机械摩擦/咔哒主体）
+  function noise({ dur = .03, freq = 2400, q = 6, vol = .5, when = 0 }) {
+    const ctx = ensure(); if (!ctx) return;
+    const t = ctx.currentTime + when;
+    const len = Math.max(1, (dur + .02) * ctx.sampleRate);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = freq; bp.Q.value = q;
+    const g = ctx.createGain(); g.gain.value = vol;
+    src.connect(bp).connect(g).connect(master);
+    src.start(t);
+  }
+
+  return {
+    set enabled(v) { enabled = v; },
+    get enabled() { return enabled; },
+    /* 键帽按下：低频噪声咔哒 */
+    key()    { noise({ dur: .025, freq: 1800, q: 4, vol: .8 });
+               blip({ f0: 240, f1: 150, dur: .05, type: "sine", vol: .5 }); },
+    /* 键帽回弹/轻触 */
+    tap()    { blip({ f0: 900, f1: 600, dur: .03, vol: .3 }); },
+    /* 旋钮每吸一档：极短高“嗒” */
+    tick()   { blip({ f0: 2200, f1: 1600, dur: .016, vol: .32 });
+               noise({ dur: .012, freq: 4200, q: 7, vol: .25 }); },
+    /* 旋钮松手定档 */
+    snap()   { noise({ dur: .04, freq: 1400, q: 3, vol: .7 });
+               blip({ f0: 320, f1: 200, dur: .07, type: "sine", vol: .5 }); },
+    /* 开关上电：咔→叮 两段 */
+    swOn()   { noise({ dur: .03, freq: 1500, q: 4, vol: .8 });
+               blip({ f0: 520, dur: .05, type: "triangle", vol: .45, when: .04 });
+               blip({ f0: 1050, dur: .09, type: "sine", vol: .4, when: .09 }); },
+    /* 开关断电：反向渐暗 */
+    swOff()  { blip({ f0: 1050, dur: .05, type: "sine", vol: .3 });
+               noise({ dur: .03, freq: 1200, q: 4, vol: .6, when: .05 });
+               blip({ f0: 300, f1: 180, dur: .07, type: "sine", vol: .4, when: .06 }); },
+    /* 滚轮数字：滚动期连续棘轮（每 38ms 一响，逐响升调），停定一声闷嗒 */
+    roll(durMs = 1000) {
+      const ctx = ensure(); if (!ctx) return;
+      const n = Math.floor(durMs / 38);
+      for (let i = 0; i < n; i++) {
+        blip({ f0: 1400 + i * 14, dur: .012, vol: .12, when: i * .038 });
+      }
+      noise({ dur: .05, freq: 900, q: 3, vol: .55, when: n * .038 + .02 });
+      blip({ f0: 200, f1: 140, dur: .08, type: "sine", vol: .45, when: n * .038 + .02 });
+    },
+    /* 抽拉过阈值提示 */
+    over()   { blip({ f0: 740, f1: 990, dur: .05, type: "triangle", vol: .4 }); },
+    /* 卡片回弹归位 */
+    spring() { blip({ f0: 480, f1: 700, dur: .08, type: "triangle", vol: .45 });
+               noise({ dur: .02, freq: 2600, q: 5, vol: .3, when: .03 }); },
+    /* 展开详情：上扬小和声 */
+    expand() { blip({ f0: 523, dur: .12, type: "sine", vol: .4 });
+               blip({ f0: 784, dur: .14, type: "sine", vol: .35, when: .07 });
+               blip({ f0: 1046, dur: .2, type: "sine", vol: .3, when: .14 });
+               noise({ dur: .18, freq: 900, q: 1.2, vol: .18 }); },
+  };
+})();
+
+// 音效总开关（键帽）
+$("#sndBtn").addEventListener("click", e => {
+  const b = e.currentTarget;
+  b.classList.toggle("on");
+  Sfx.enabled = b.classList.contains("on");
+  if (Sfx.enabled) Sfx.key();
+});
+
+/* ============================================================
    交互 01 · 菜单键帽：当前项保持按下 + 指示灯
    ============================================================ */
 const navKeys = $$("#nav .key");
 navKeys.forEach(k => {
   k.addEventListener("click", () => {
+    Sfx.key();
     navKeys.forEach(x => x.classList.remove("on"));
     k.classList.add("on");
     document.getElementById(k.dataset.sec).scrollIntoView({ behavior: "smooth", block: "start" });
@@ -598,9 +703,11 @@ function refreshMetrics(period) {
 $$("#periodSeg .key").forEach(k => {
   k.addEventListener("click", () => {
     if (k.classList.contains("on")) return;
+    Sfx.key();
     $$("#periodSeg .key").forEach(x => x.classList.remove("on"));
     k.classList.add("on");
     refreshMetrics(k.dataset.period);
+    Sfx.roll(960);                            // 最长位过渡 ~960ms
   });
 });
 refreshMetrics("month");
@@ -659,7 +766,10 @@ knob.addEventListener("pointerdown", e => {
 });
 knob.addEventListener("pointermove", e => knobDragging && moveKnob(e));
 ["pointerup", "pointercancel"].forEach(ev =>
-  knob.addEventListener(ev, () => knobDragging = false));
+  knob.addEventListener(ev, () => {
+    if (knobDragging) Sfx.snap();
+    knobDragging = false;
+  }));
 
 function moveKnob(e) {
   let a = angleFromEvent(e);
@@ -668,7 +778,7 @@ function moveKnob(e) {
   let v = (a - ANG_MIN) / (ANG_MAX - ANG_MIN) * KNOB_MAX;
   v = Math.round(v / KNOB_STEP) * KNOB_STEP;      // 每 5% 吸附
   v = Math.max(KNOB_MIN, Math.min(KNOB_MAX, v));
-  if (v !== targetVal) applyTarget(v);
+  if (v !== targetVal) { applyTarget(v); Sfx.tick(); }
 }
 applyTarget(60);
 
@@ -700,7 +810,9 @@ MODULES.forEach((m, i) => {
   const sw = el.querySelector(".sw");
   sw.addEventListener("click", () => {
     sw.classList.toggle("on");
-    el.classList.toggle("on", sw.classList.contains("on"));
+    const on = sw.classList.contains("on");
+    el.classList.toggle("on", on);
+    on ? Sfx.swOn() : Sfx.swOff();
   });
 });
 // 默认开启前两个模块
@@ -806,6 +918,8 @@ deck.addEventListener("pointerdown", e => {
   top.el.classList.remove("returning");
   top.el.classList.add("dragging");
   deckHint.textContent = "拖动中 · 松手归位";
+  Sfx.tap();
+  dragState.wasOver = false;
   e.preventDefault();
 });
 
@@ -824,6 +938,7 @@ deck.addEventListener("pointermove", e => {
   kickSprings();
   // 实时提示
   const over = dy > DRAG_THRESHOLD;
+  if (over !== dragState.wasOver) { Sfx.over(); dragState.wasOver = over; }
   deckHint.textContent = over ? "已超阈值 · 松手拉出查看详情" : "拖动中 · 松手归位";
   deckHint.classList.toggle("hot", over);
 });
@@ -840,6 +955,7 @@ function endDrag() {
     top.el.style.transform = "translateY(0) rotate(0deg)";
     pcards.forEach(c => c.target = 0);
     kickSprings();
+    Sfx.expand();
     openDetail(EMPLOYEES[top.index]);
     deckHint.textContent = "按住顶部卡片向下拖";
     deckHint.classList.remove("hot");
@@ -849,6 +965,7 @@ function endDrag() {
     top.el.style.transform = "translateY(0) rotate(0deg)";
     pcards.forEach(c => c.target = 0);
     kickSprings();
+    Sfx.spring();
     deckHint.textContent = "按住顶部卡片向下拖";
     deckHint.classList.remove("hot");
   }
@@ -882,7 +999,7 @@ function openDetail(emp) {
   overlay.classList.add("show");
   $("#dClose").addEventListener("click", closeDetail);
 }
-function closeDetail() { overlay.classList.remove("show"); }
+function closeDetail() { overlay.classList.remove("show"); Sfx.tap(); }
 overlay.addEventListener("pointerdown", e => {
   if (e.target === overlay) closeDetail();
 });
